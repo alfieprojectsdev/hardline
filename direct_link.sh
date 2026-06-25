@@ -16,6 +16,93 @@ set -u
 PROFILE="Direct-Link"
 LL_BCAST="169.254.255.255"
 
+usage() {
+cat <<'EOF'
+hardline / direct_link.sh — direct cable link between two machines.
+
+USAGE
+  sudo ./direct_link.sh [IFACE]     bring up link-local + discover the peer
+       ./direct_link.sh --help      this help (no root needed)
+
+  IFACE is optional; auto-detected as the cabled (carrier-up) physical NIC.
+
+============================================================================
+ ONE-TIME SERVER SETUP  —  do this ONCE, with physical access to the server,
+ WHILE IT STILL HAS INTERNET (the direct cable is offline afterward).
+ After this you only ever run direct_link.sh on the LAPTOP.
+============================================================================
+
+ 1. SSH server (so the box accepts connections):
+      sudo apt update && sudo apt install -y openssh-server
+      sudo systemctl enable --now ssh
+
+ 2. mDNS — reach it as <hostname>.local instead of chasing IPs:
+      sudo apt install -y avahi-daemon avahi-utils
+      sudo systemctl enable --now avahi-daemon
+
+ 3. (optional) encrypted transfers:
+      sudo apt install -y croc            # or: github.com/schollz/croc
+
+ 4. Persistent link-local on the direct-cable port, so the server
+    self-configures the moment a cable is plugged in (no login needed).
+
+    First find the port name you'll use for the direct cable:
+      ip -o link show | awk -F': ' '{print $2}'      # e.g. enp3s0f1
+
+    Then ONE of the following (use the real iface in place of ENP_X):
+
+    a) netplan (Ubuntu Server default):
+         sudo tee /etc/netplan/99-hardline.yaml >/dev/null <<'YAML'
+         network:
+           version: 2
+           ethernets:
+             ENP_X:
+               dhcp4: no
+               link-local: [ ipv4 ]
+         YAML
+         sudo chmod 600 /etc/netplan/99-hardline.yaml
+         sudo netplan apply
+
+    b) systemd-networkd:
+         sudo tee /etc/systemd/network/20-hardline.network >/dev/null <<'NET'
+         [Match]
+         Name=ENP_X
+         [Network]
+         LinkLocalAddressing=ipv4
+         DHCP=no
+         NET
+         sudo systemctl enable --now systemd-networkd
+
+    c) NetworkManager:
+         sudo nmcli connection add type ethernet con-name hardline \
+              ifname ENP_X ipv4.method link-local ipv6.method ignore \
+              autoconnect yes
+
+ NB: IPv6 link-local (fe80::) is ALWAYS on with carrier — so once sshd (step 1)
+ is running, the laptop can already reach the server over IPv6 even before
+ step 4. Step 4 just gives you a stable IPv4 link-local + a clean setup.
+
+============================================================================
+ LAPTOP-ONLY USAGE  (after the server is prepped, or even a bare server)
+============================================================================
+  Normal:
+      sudo ./direct_link.sh                 # brings up the wire, finds peer
+      ssh <user>@<server-hostname>.local    # if avahi installed on server
+
+  Aggressive (zero server IP config — needs only server sshd up):
+      ping6 -c3 -I <IFACE> ff02::1          # server kernel replies; note fe80
+      ssh <user>@fe80::....%<IFACE>         # %iface scope is required
+
+WARNING
+  Never enable DHCP/NAT "shared" mode on a NIC attached to a managed LAN —
+  it hands out rogue leases and breaks that network. Direct-cable iface only.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help|help) usage; exit 0 ;;
+esac
+
 # --- 0. must be root to reconfigure interfaces -----------------------------
 if [ "$(id -u)" -ne 0 ]; then
     echo "This needs root (it reconfigures a network interface)."
