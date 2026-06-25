@@ -63,7 +63,7 @@ So: `hardline` brings the wire up → `peer.local` resolves via mDNS → the FM 
 ## Requirements
 
 - Linux with `iproute2` (always present), `bash`, root for interface config.
-- Optional but recommended (install on a normal network *first*, since the direct link is offline):
+- Optional but recommended:
   - `openssh-server` — to accept connections
   - `avahi-daemon` + `avahi-utils` — for `<host>.local` names
   - `arp-scan` — more reliable peer detection
@@ -71,7 +71,7 @@ So: `hardline` brings the wire up → `peer.local` resolves via mDNS → the FM 
 
 ## Caveats
 
-- **Pre-install the optional tools while you still have internet.** The whole point is the direct link is isolated.
+- **A multi-NIC machine stays online while link-local'd.** A rack server with several ports keeps its uplink (internet) on one port and the direct cable on another — both at once. The gateway-less link-local on the direct port doesn't touch the default route, so `apt` keeps working. Only a **single-NIC** box with no other uplink goes offline on the direct cable — there, install the optional tools first.
 - Link-local addresses are dynamic; use the `.local` mDNS name for stable references.
 - A direct point-to-point cable is physically trusted, but `sshd` is exposed on the link — fine for two boxes you own.
 - This is a personal ops convenience tool, not a network framework. For persistent setups, a `systemd-networkd` profile + avahi is cleaner; for pure transfers, `croc` alone may be enough.

@@ -27,8 +27,13 @@ USAGE
   IFACE is optional; auto-detected as the cabled (carrier-up) physical NIC.
 
 ============================================================================
- ONE-TIME SERVER SETUP  —  do this ONCE, with physical access to the server,
- WHILE IT STILL HAS INTERNET (the direct cable is offline afterward).
+ ONE-TIME SERVER SETUP  —  do this ONCE, with physical access to the server.
+ The apt steps need internet. A MULTI-NIC server (rack server with several
+ RJ45 ports) keeps its uplink on one port and the direct cable on a SECOND
+ port — both at once: it never goes offline, apt works anytime, and the
+ gateway-less link-local on the direct port won't disturb its default route.
+ Only a SINGLE-NIC box with no other uplink loses internet on the direct
+ cable; there, install everything first.
  After this you only ever run direct_link.sh on the LAPTOP.
 ============================================================================
 
